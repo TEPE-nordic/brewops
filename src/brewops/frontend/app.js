@@ -29,7 +29,10 @@ function renderDrinkBars(perDrink) {
 function renderTimeline(perDay) {
   const svg = document.getElementById("timeline");
   svg.innerHTML = "";
-  if (perDay.length === 0) return;
+  if (perDay.length === 0) {
+    document.getElementById("filter-message").textContent = "No brews in this range.";
+    return;
+  }
   const width = 600;
   const height = 130;
   const max = Math.max(...perDay.map((d) => d.count));
@@ -75,8 +78,12 @@ function renderMachineCards(healths) {
   }
 }
 
-async function loadDashboard() {
-  const stats = await fetchJSON("/api/stats");
+async function loadDashboard(range = {}) {
+  const params = new URLSearchParams();
+  if (range.start) params.set("start", range.start);
+  if (range.end) params.set("end", range.end);
+  const query = params.toString() ? `?${params}` : "";
+  const stats = await fetchJSON(`/api/stats${query}`);
   document.getElementById("total-brews").textContent = stats.total_brews;
   const lastDay = stats.per_day[stats.per_day.length - 1];
   document.getElementById("brews-today").textContent = lastDay ? lastDay.count : 0;
@@ -87,6 +94,33 @@ async function loadDashboard() {
   document.getElementById("machine-count").textContent = machines.length;
   const healths = await Promise.all(machines.map((m) => fetchJSON(`/api/machines/${m.id}`)));
   renderMachineCards(healths);
+}
+
+// ---- date filter ----
+
+function setupDateFilter() {
+  const startInput = document.getElementById("filter-start");
+  const endInput = document.getElementById("filter-end");
+  const message = document.getElementById("filter-message");
+
+  document.getElementById("filter-apply").addEventListener("click", async () => {
+    message.textContent = "";
+    message.className = "message";
+    try {
+      await loadDashboard({ start: startInput.value, end: endInput.value });
+    } catch (error) {
+      message.textContent = error.message;
+      message.classList.add("error");
+    }
+  });
+
+  document.getElementById("filter-reset").addEventListener("click", async () => {
+    startInput.value = "";
+    endInput.value = "";
+    message.textContent = "";
+    message.className = "message";
+    await loadDashboard();
+  });
 }
 
 // ---- forms ----
@@ -159,3 +193,4 @@ loadDashboard().catch((error) => {
   console.error("Dashboard failed to load:", error);
 });
 setupForms().catch((error) => console.error("Form setup failed:", error));
+setupDateFilter();

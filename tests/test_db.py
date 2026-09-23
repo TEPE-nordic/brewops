@@ -52,6 +52,59 @@ def test_stats_math(conn):
     assert per_day == {"2026-06-01": 2, "2026-06-02": 2}
 
 
+def test_stats_date_range_single_day(conn):
+    insert_brew(conn, 1, "espresso", "2026-06-01 08:00:00", 27.5, 92.0, "csv")
+    insert_brew(conn, 1, "espresso", "2026-06-01 09:00:00", 26.0, 91.5, "csv")
+    insert_brew(conn, 2, "latte", "2026-06-02 10:00:00", 44.0, 88.0, "csv")
+    insert_brew(conn, 3, "lungo", "2026-06-02 11:00:00", 38.0, 90.0, "manual")
+    conn.commit()
+
+    stats = get_stats(conn, start="2026-06-01", end="2026-06-01")
+    assert stats["total_brews"] == 2
+    per_day = {d["day"]: d["count"] for d in stats["per_day"]}
+    assert per_day == {"2026-06-01": 2}
+
+
+def test_stats_date_range_zero_counts_preserved(conn):
+    insert_brew(conn, 1, "espresso", "2026-06-01 08:00:00", 27.5, 92.0, "csv")
+    insert_brew(conn, 1, "espresso", "2026-06-01 09:00:00", 26.0, 91.5, "csv")
+    insert_brew(conn, 2, "latte", "2026-06-02 10:00:00", 44.0, 88.0, "csv")
+    insert_brew(conn, 3, "lungo", "2026-06-02 11:00:00", 38.0, 90.0, "manual")
+    conn.commit()
+
+    stats = get_stats(conn, start="2026-06-02", end="2026-06-02")
+    per_drink = {d["name"]: d["count"] for d in stats["per_drink"]}
+    assert "espresso" in per_drink
+    assert per_drink["espresso"] == 0
+
+
+def test_stats_date_range_empty(conn):
+    insert_brew(conn, 1, "espresso", "2026-06-01 08:00:00", 27.5, 92.0, "csv")
+    insert_brew(conn, 1, "espresso", "2026-06-01 09:00:00", 26.0, 91.5, "csv")
+    insert_brew(conn, 2, "latte", "2026-06-02 10:00:00", 44.0, 88.0, "csv")
+    insert_brew(conn, 3, "lungo", "2026-06-02 11:00:00", 38.0, 90.0, "manual")
+    conn.commit()
+
+    stats = get_stats(conn, start="2026-07-01", end="2026-07-31")
+    assert stats["total_brews"] == 0
+    assert stats["per_day"] == []
+    per_drink = {d["name"]: d["count"] for d in stats["per_drink"]}
+    assert per_drink["espresso"] == 0
+    assert per_drink["latte"] == 0
+
+
+def test_stats_date_range_future(conn):
+    insert_brew(conn, 1, "espresso", "2026-06-01 08:00:00", 27.5, 92.0, "csv")
+    insert_brew(conn, 1, "espresso", "2026-06-01 09:00:00", 26.0, 91.5, "csv")
+    insert_brew(conn, 2, "latte", "2026-06-02 10:00:00", 44.0, 88.0, "csv")
+    insert_brew(conn, 3, "lungo", "2026-06-02 11:00:00", 38.0, 90.0, "manual")
+    conn.commit()
+
+    stats = get_stats(conn, start="2099-01-01", end="2099-01-31")
+    assert stats["total_brews"] == 0
+    assert stats["per_day"] == []
+
+
 def test_machine_health(conn):
     insert_brew(conn, 4, "espresso", "2026-06-01 08:00:00", 27.0, 92.0, "csv")
     insert_maintenance(conn, 4, "descale", "2026-06-03 18:00:00", note="quarterly descale")

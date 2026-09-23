@@ -54,6 +54,28 @@ def parse_timestamp(value: str) -> str:
     return ts.strftime("%Y-%m-%d %H:%M:%S")
 
 
+DATE_FORMAT = "%Y-%m-%d"
+
+
+def validate_date_range(start: str | None, end: str | None) -> tuple[str | None, str | None]:
+    """Validate optional YYYY-MM-DD query params for /api/stats.
+    Does not reject future dates — only malformed strings and start > end."""
+    parsed_start = parsed_end = None
+    if start is not None:
+        try:
+            parsed_start = datetime.strptime(start.strip(), DATE_FORMAT)
+        except ValueError:
+            raise HTTPException(400, f"unparsable start date {start!r}")
+    if end is not None:
+        try:
+            parsed_end = datetime.strptime(end.strip(), DATE_FORMAT)
+        except ValueError:
+            raise HTTPException(400, f"unparsable end date {end!r}")
+    if parsed_start is not None and parsed_end is not None and parsed_start > parsed_end:
+        raise HTTPException(400, "start date is after end date")
+    return start, end
+
+
 class BrewIn(BaseModel):
     machine_id: int
     drink_type: str
@@ -71,8 +93,13 @@ class MaintenanceIn(BaseModel):
 
 
 @app.get("/api/stats")
-def stats(conn: sqlite3.Connection = Depends(get_db)):
-    return queries.get_stats(conn)
+def stats(
+    start: str | None = None,
+    end: str | None = None,
+    conn: sqlite3.Connection = Depends(get_db),
+):
+    start, end = validate_date_range(start, end)
+    return queries.get_stats(conn, start, end)
 
 
 @app.get("/api/machines")

@@ -67,30 +67,64 @@ def insert_maintenance(
     return cur.lastrowid
 
 
-def get_stats(conn: sqlite3.Connection) -> dict[str, Any]:
-    """Dashboard numbers: totals, per-drink, per-day."""
-    total = conn.execute("SELECT COUNT(*) AS n FROM brew_events").fetchone()["n"]
+def get_stats(
+    conn: sqlite3.Connection,
+    start: str | None = None,
+    end: str | None = None,
+) -> dict[str, Any]:
+    """Dashboard numbers: totals, per-drink, per-day.
+
+    start/end are YYYY-MM-DD strings or None (unbounded on that side).
+    end is inclusive — includes all brews through 23:59:59 on that day.
+    """
+    conditions = []
+    params: list[str] = []
+    if start is not None:
+        conditions.append("timestamp >= ?")
+        params.append(f"{start} 00:00:00")
+    if end is not None:
+        conditions.append("timestamp <= ?")
+        params.append(f"{end} 23:59:59")
+    where_clause = f"WHERE {' AND '.join(conditions)}" if conditions else ""
+
+    total = conn.execute(f"SELECT COUNT(*) AS n FROM brew_events {where_clause}", params).fetchone()["n"]
+
+    # Filter goes in ON clause for LEFT JOIN, not WHERE, so drink types with zero brews in range still appear.
+    on_conditions = ["be.drink_type = dt.name"]
+    on_params: list[str] = []
+    if start is not None:
+        on_conditions.append("be.timestamp >= ?")
+        on_params.append(f"{start} 00:00:00")
+    if end is not None:
+        on_conditions.append("be.timestamp <= ?")
+        on_params.append(f"{end} 23:59:59")
+    on_clause = " AND ".join(on_conditions)
+
     per_drink = [
         dict(r)
         for r in conn.execute(
-            """
+            f"""
             SELECT dt.name, dt.label, COUNT(be.id) AS count
             FROM drink_types dt
-            LEFT JOIN brew_events be ON be.drink_type = dt.name
+            LEFT JOIN brew_events be ON {on_clause}
             GROUP BY dt.id
             ORDER BY dt.id
-            """
+            """,
+            on_params,
         )
     ]
+
     per_day = [
         dict(r)
         for r in conn.execute(
-            """
+            f"""
             SELECT DATE(timestamp) AS day, COUNT(*) AS count
             FROM brew_events
+            {where_clause}
             GROUP BY DATE(timestamp)
             ORDER BY day
-            """
+            """,
+            params,
         )
     ]
     return {"total_brews": total, "per_drink": per_drink, "per_day": per_day}

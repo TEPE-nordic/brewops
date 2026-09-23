@@ -36,6 +36,40 @@ def test_stats(db):
     }
 
 
+def test_stats_date_range_single_day(db):
+    r = request(app, "GET", "/api/stats?start=2026-06-01&end=2026-06-01")
+    assert r.status == 200
+    stats = r.json()
+    assert stats["total_brews"] == 2
+
+
+def test_stats_date_range_empty(db):
+    r = request(app, "GET", "/api/stats?start=2026-07-01&end=2026-07-31")
+    assert r.status == 200
+    stats = r.json()
+    assert stats["total_brews"] == 0
+    assert stats["per_day"] == []
+
+
+def test_stats_date_range_reversed(db):
+    r = request(app, "GET", "/api/stats?start=2026-06-05&end=2026-06-01")
+    assert r.status == 400
+    assert "after" in r.json()["detail"]
+
+
+def test_stats_date_malformed_start(db):
+    r = request(app, "GET", "/api/stats?start=banana")
+    assert r.status == 400
+    assert "unparsable" in r.json()["detail"]
+
+
+def test_stats_date_future_start(db):
+    r = request(app, "GET", "/api/stats?start=2099-01-01")
+    assert r.status == 200
+    stats = r.json()
+    assert stats["total_brews"] == 0
+
+
 def test_machines_list_and_health(db):
     r = request(app, "GET", "/api/machines")
     assert r.status == 200
