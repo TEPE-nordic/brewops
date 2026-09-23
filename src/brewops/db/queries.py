@@ -3,6 +3,8 @@
 import sqlite3
 from typing import Any
 
+WEEKDAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
+
 
 def get_machines(conn: sqlite3.Connection) -> list[dict[str, Any]]:
     rows = conn.execute("SELECT id, name, floor, has_telemetry FROM machines ORDER BY id")
@@ -139,10 +141,23 @@ def get_machine_health(conn: sqlite3.Connection, machine_id: int) -> dict[str, A
         """,
         (machine_id,),
     ).fetchone()
+    busiest = conn.execute(
+        """
+        SELECT strftime('%w', timestamp) AS weekday, COUNT(*) AS count, MAX(timestamp) AS last_ts
+        FROM brew_events
+        WHERE machine_id = ?
+        GROUP BY weekday
+        ORDER BY count DESC, last_ts DESC
+        LIMIT 1
+        """,
+        (machine_id,),
+    ).fetchone()
     return machine | {
         "brew_count": brews["count"],
         "last_brew": brews["last_brew"],
         "last_maintenance": dict(last_maintenance) if last_maintenance else None,
         "recent_errors": recent_errors,
         "specialty": specialty["label"] if specialty else None,
+        "busiest_day": WEEKDAYS[int(busiest["weekday"])] if busiest else None,
+        "busiest_day_count": busiest["count"] if busiest else None,
     }
