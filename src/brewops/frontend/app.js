@@ -71,7 +71,7 @@ function renderMachineCards(healths) {
       <p class="badge">${m.has_telemetry ? "telemetry" : "manual log"}</p>
       <p>${m.brew_count} brews · last ${m.last_brew ? m.last_brew.slice(0, 16) : "never"}</p>
       <p>Specialty: ${m.specialty ?? "—"}</p>
-      <p>Busiest day: ${m.busiest_day ? `${m.busiest_day}s (${m.busiest_day_count} brews)` : "—"}</p>
+      <p>Busiest weekday: ${m.busiest_day ? `${m.busiest_day}s (${m.busiest_day_count} brews)` : "—"}</p>
       <p>Last maintenance: ${maintenance}</p>
       ${errors}`;
     container.appendChild(card);
