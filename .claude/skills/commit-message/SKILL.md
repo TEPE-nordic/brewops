@@ -24,12 +24,27 @@ extend.
 - Keep it a plain sentence describing *what changed*, not *why* (the diff and any
   linked ticket carry the why).
 - No period at the end.
+- Name the specific thing touched — a function name, a file, a skill, a doc —
+  rather than describing the area in general terms. Someone scanning `git log`
+  should be able to tell *where* to look without opening the diff.
 
 **Examples (real commits from this repo):**
 - `Add dashboard date-range filter (ticket 005)`
 - `Show each machine's specialty on its health card`
 - `Fix allow SQLite connections across threads`
 - `Add new drink type support to BrewOps`
+
+**Being specific — compare:**
+- Vague: `Update dashboard styling` → Specific: `Widen the grid gap in renderMachineCards`
+- Vague: `Add skills` → Specific: `Add commit-message skill`
+- Vague: `Fix bug in queries` → Specific: `Fix get_machine_health filtering out machines with zero brews`
+- Vague: `Update docs` → Specific: `Document the ingest CSV filename prefixes in CLAUDE.md`
+
+Pick the noun that actually identifies the change: a function/method name for code,
+the skill's directory name for skills, the doc's filename for docs. If a change
+touches several functions or files for one cohesive reason, name the most relevant
+one or the shared concept (e.g. `renderMachineCards`) rather than listing all of
+them — the goal is a precise pointer, not an exhaustive index.
 
 ## Ticket references
 
